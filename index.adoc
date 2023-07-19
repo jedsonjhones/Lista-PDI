@@ -1,6 +1,6 @@
 :source-highlighter: pygments
 :numbered:
-:author: Jedson Jhones Barbosa Alves
+:author: Jedson Jhones Barbosa Alves e Josiel Rocha de Oliveira
 :icons:
 :experimental:
 :stem:
