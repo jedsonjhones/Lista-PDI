@@ -82,14 +82,112 @@ int main(int, char**){
 ----
 image::biel.png[title="Biel.png"]
 
+[source, cpp]
+----
+#include <iostream>
+#include <opencv2/opencv.hpp>
+
+int main(int, char**){
+  cv::Mat image;
+  cv::Vec3b val;
+
+  int P1[2];
+  int P2[2];
+
+  image= cv::imread("biel.png",cv::IMREAD_GRAYSCALE);
+  if(!image.data)
+    std::cout << "nao abriu biel.png" << std::endl;
+
+// -------------PRIMEIRA COORDENADA (P1)-------------
+  std::cout << "Digite as coordenadas P1(x,y)" << std::endl;
+  std::cin >> P1[0];
+  while(P1[0] > image.rows || P1[0] < 0){
+    std::cout << "Linha invalida. Digite novamente.\n";
+    std::cin >> P1[0];
+  }
+  std::cin >> P1[1];
+  while(P1[1] > image.cols || P1[1] < 0){
+    std::cout << "Coluna invalida. Digite novamente.\n";
+    std::cin >> P1[1];
+  }
+
+// --------------SEGUNDA COORDENADA (P2)----------
+  std::cout << "Digite as coordenadas P2(x,y)" << std::endl;
+  std::cin >> P2[0];
+  while(P2[0] > image.rows || P2[0] < 0){
+    std::cout << "Linha invalida. Digite novamente.\n";
+    std::cin >> P2[0];
+  }
+
+  std::cin >> P2[1];
+  while(P2[1] > image.cols || P2[1] < 0){
+    std::cout << "Coluna invalida. Digite novamente.\n";
+    std::cin >> P2[1];
+  }
+
+//-------------------------------------
+
+  for(int i=P1[0];i<P2[0];i++){
+    for(int j=P1[1];j<P2[1];j++){
+      image.at<uchar>(i,j)=255-image.at<uchar>(i,j);
+    }
+  }
+
+  cv::imshow("Regioes", image);
+  cv::waitKey();
+}
+----
+image::biel2.png[title="Biel.png"]
 
 
 ===== Exercício 2.2.2
 
 
+
 [source, cpp]
 ----
-Em produção @@@@@@@@@@@
+#include <iostream>
+#include <opencv2/opencv.hpp>
+
+int main(int, char**){
+  cv::Mat image, image1, image2;
+  cv::Vec3b val;
+
+  image= cv::imread("biel.png",cv::IMREAD_GRAYSCALE);
+  if(!image.data)
+    std::cout << "nao abriu biel.png" << std::endl;
+
+  cv::imshow("Original", image);
+
+  cv::Rect regiao1 = cv::Rect(0, 0,
+  image.cols/2, image.rows/2);
+
+  image(regiao1).copyTo(image1);
+
+
+  image(cv::Rect(image.cols/2, image.rows/2,
+  image.cols/2, image.rows/2)).copyTo(image(regiao1));
+
+
+  cv::Rect regiao2 = cv::Rect(image.cols/2, 0,
+   image.cols/2, image.rows/2);
+
+  image(regiao2).copyTo(image2);
+
+
+  image(cv::Rect(0, image.rows/2,
+   image.cols/2, image.rows/2)).copyTo(image(regiao2));
+
+
+  image1.copyTo(image(cv::Rect(image.cols/2, image.rows/2,
+  image.cols/2, image.rows/2)));
+
+  image2.copyTo(image(cv::Rect(0, image.rows/2,
+   image.cols/2, image.rows/2)));
+
+  cv::imshow("Troca regioes", image);
+  cv::waitKey();
+}
 ----
 
 == Serialização de dados em ponto flutuante via FileStorage
@@ -147,6 +245,7 @@ int main(int argc, char** argv) {
 
 
 ----
+image::senoide.png[title="Serialização de dados em ponto flutuante via FileStorage"]
 
 
 == Decomposição de imagens em planos de bits
@@ -787,6 +886,9 @@ int main( int argc, char** argv ){
   waitKey( 0 );
 }
 ----
+
+image::comid0.png[title="Imagen usada"]
+image::comid.gif[title="Resultado Quantização vetorial com k-means"]
 
 == Filtragem de forma com morfologia matemática
 
