@@ -98,7 +98,54 @@ Em produção @@@@@@@@@@@
 
 [source, cpp]
 ----
-Em produção @@@@@@@@@@@
+Questão 3
+
+#include <iostream>
+#include <opencv2/opencv.hpp>
+#include <sstream>
+#include <string>
+
+int SIDE = 256;
+int PERIODOS = 4;
+float M_PI = 3.14159;
+int amplitude = 127;
+
+int main(int argc, char** argv) {
+    std::stringstream ss_img, ss_yml;
+    cv::Mat image;
+
+    ss_yml << "senoide-" << SIDE << ".yml";
+    image = cv::Mat::zeros(SIDE, SIDE, CV_32FC1);
+
+    cv::FileStorage fs(ss_yml.str(), cv::FileStorage::WRITE);
+
+    for (int i = 0; i < SIDE; i++) {
+        for (int j = 0; j < SIDE; j++) {
+            image.at<float>(i, j) = 127 * sin(2 * M_PI * PERIODOS * amplitude * j / SIDE) + 128;
+        }
+    }
+
+    fs << "mat" << image;
+    fs.release();
+
+    cv::normalize(image, image, 0, 255, cv::NORM_MINMAX);
+    image.convertTo(image, CV_8U);
+    ss_img << "senoide-" << SIDE << ".png";
+    cv::imwrite(ss_img.str(), image);
+
+    fs.open(ss_yml.str(), cv::FileStorage::READ);
+    fs["mat"] >> image;
+
+    cv::normalize(image, image, 0, 255, cv::NORM_MINMAX);
+    image.convertTo(image, CV_8U);
+
+    cv::imshow("image", image);
+    cv::waitKey();
+
+    return 0;
+}
+
+
 ----
 
 
@@ -227,7 +274,138 @@ image::labeling.png[title="Resultado do labeling"]
 
 [source, cpp]
 ----
-Em produção @@@@@@@@@@@
+Questão 6
+
+#include <iostream>
+#include <opencv2/opencv.hpp>
+
+using namespace cv;
+using namespace std;
+
+int main(int argc, char** argv) {
+    Mat imagem, imageeq;
+    int width, height;
+    VideoCapture cap;
+    vector<Mat> planes, planeseq;
+    Mat histR, histG, histB;
+    int nbins = 64;
+    float range[] = { 0, 256 };
+    const float* histrange = { range };
+    bool uniform = true;
+    bool acummulate = false;
+
+    cap.open(0);
+
+    // verificação da entrada da camera se esta ou não conectada
+    if (!cap.isOpened()) {
+        cout << "cameras indisponiveis";
+        return -1;
+    }
+
+    width = cap.get(CV_CAP_PROP_FRAME_WIDTH);
+    height = cap.get(CV_CAP_PROP_FRAME_HEIGHT);
+
+    // Retorna a altura e largura da imagem que ta sendo capturada
+    cout << "largura = " << width << endl;
+    cout << "altura  = " << height << endl;
+
+    int histw = nbins, histh = nbins / 2;
+    Mat histImgR(histh, histw, CV_8UC3, Scalar(0, 0, 0));
+    Mat histImgG(histh, histw, CV_8UC3, Scalar(0, 0, 0));
+    Mat histImgB(histh, histw, CV_8UC3, Scalar(0, 0, 0));
+
+    while (1) {
+        cap >> imagem;
+        split(imagem, planes);
+        split(imagem, planeseq);
+        //EQUALIZACAO
+        equalizeHist(planes[0], planeseq[0]);
+        equalizeHist(planes[1], planeseq[1]);
+        equalizeHist(planes[2], planeseq[2]);
+        merge(planes, imagem);
+        merge(planeseq, imageeq);
+        // calculo da vermelha
+        calcHist(&planes[0], 1, 0, Mat(), histR, 1,
+            &nbins, &histrange,
+            uniform, acummulate);
+        // calculo da verde
+        calcHist(&planes[1], 1, 0, Mat(), histG, 1,
+            &nbins, &histrange,
+            uniform, acummulate);
+        // calculo da azul
+        calcHist(&planes[2], 1, 0, Mat(), histB, 1,
+            &nbins, &histrange,
+            uniform, acummulate);
+
+        normalize(histR, histR, 0, histImgR.rows, NORM_MINMAX, -1, Mat());
+        normalize(histG, histG, 0, histImgG.rows, NORM_MINMAX, -1, Mat());
+        normalize(histB, histB, 0, histImgB.rows, NORM_MINMAX, -1, Mat());
+
+        histImgR.setTo(Scalar(0));
+        histImgG.setTo(Scalar(0));
+        histImgB.setTo(Scalar(0));
+
+        for (int i = 0; i < nbins; i++) {
+            line(histImgR,
+                Point(i, histh),
+                Point(i, histh - cvRound(histR.at<float>(i))),
+                Scalar(0, 0, 255), 1, 8, 0);
+            line(histImgG,
+                Point(i, histh),
+                Point(i, histh - cvRound(histG.at<float>(i))),
+                Scalar(0, 255, 0), 1, 8, 0);
+            line(histImgB,
+                Point(i, histh),
+                Point(i, histh - cvRound(histB.at<float>(i))),
+                Scalar(255, 0, 0), 1, 8, 0);
+        }
+        histImgR.copyTo(imagem(Rect(0, 0, nbins, histh)));
+        histImgG.copyTo(imagem(Rect(0, histh, nbins, histh)));
+        histImgB.copyTo(imagem(Rect(0, 2 * histh, nbins, histh)));
+        imshow("imagem", imagem);
+
+        calcHist(&planeseq[0], 1, 0, Mat(), histR, 1,
+            &nbins, &histrange,
+            uniform, acummulate);
+
+        calcHist(&planeseq[1], 1, 0, Mat(), histG, 1,
+            &nbins, &histrange,
+            uniform, acummulate);
+
+        calcHist(&planeseq[2], 1, 0, Mat(), histB, 1,
+            &nbins, &histrange,
+            uniform, acummulate);
+
+        normalize(histR, histR, 0, histImgR.rows, NORM_MINMAX, -1, Mat());
+        normalize(histG, histG, 0, histImgG.rows, NORM_MINMAX, -1, Mat());
+        normalize(histB, histB, 0, histImgB.rows, NORM_MINMAX, -1, Mat());
+
+        histImgR.setTo(Scalar(0));
+        histImgG.setTo(Scalar(0));
+        histImgB.setTo(Scalar(0));
+
+        for (int i = 0; i < nbins; i++) {
+            line(histImgR,
+                Point(i, histh),
+                Point(i, histh - cvRound(histR.at<float>(i))),
+                Scalar(0, 0, 255), 1, 8, 0);
+            line(histImgG,
+                Point(i, histh),
+                Point(i, histh - cvRound(histG.at<float>(i))),
+                Scalar(0, 255, 0), 1, 8, 0);
+            line(histImgB,
+                Point(i, histh),
+                Point(i, histh - cvRound(histB.at<float>(i))),
+                Scalar(255, 0, 0), 1, 8, 0);
+        }
+        histImgR.copyTo(imageeq(Rect(0, 0, nbins, histh)));
+        histImgG.copyTo(imageeq(Rect(0, histh, nbins, histh)));
+        histImgB.copyTo(imageeq(Rect(0, 2 * histh, nbins, histh)));
+        imshow("imageeq", imageeq);
+        if (waitKey(30) >= 0) break;
+    }
+    return 0;
+}
 ----
 
 
@@ -278,8 +456,186 @@ Em produção @@@@@@@@@@@
 
 [source, cpp]
 ----
-Em produção @@@@@@@@@@@
+Questão 10
+
+#include <iostream>
+#include <opencv2/opencv.hpp>
+#include <math.h>
+
+using namespace cv;
+using namespace std;
+
+
+float MAX = 100.0;
+
+
+//-------PARAMETROS DO FILTRO
+float gammal = 0;
+float max_gammal = 100;
+int gammal_slider = 0;
+
+int d0_slider = 0;
+float max_d0 = 256;
+float d0 = 0;
+
+float gammah = 0;
+float max_gammah = 100;
+int gammah_slider = 0;
+
+float c = 0;
+float max_c = 100;
+int c_slider = 0;
+
+
+Mat image, imageDft, padded;
+
+
+int dft_M, dft_N;
+
+
+char TrackbarName[50];
+
+
+void deslocaDFT(Mat& image) {
+    Mat tmp, A, B, C, D;
+
+
+    image = image(Rect(0, 0, image.cols & -2, image.rows & -2));
+    int cx = image.cols / 2;
+    int cy = image.rows / 2;
+
+
+    A = image(Rect(0, 0, cx, cy));
+    B = image(Rect(cx, 0, cx, cy));
+    C = image(Rect(0, cy, cx, cy));
+    D = image(Rect(cx, cy, cx, cy));
+
+ 
+    A.copyTo(tmp);  D.copyTo(A);  tmp.copyTo(D);
+
+    C.copyTo(tmp);  B.copyTo(C);  tmp.copyTo(B);
+}
+
+void applyFilter() {
+    Mat filter = Mat(padded.size(), CV_32FC2, Scalar(0));
+    Mat tmp = Mat(dft_M, dft_N, CV_32F);
+
+    for (int i = 0; i < dft_M; i++) {
+        for (int j = 0; j < dft_N; j++) {
+            //calculo do filtro homomorfico
+            float d2 = pow(i - dft_M / 2.0, 2) + pow(j - dft_N / 2.0, 2);
+            float exp = -c * (d2 / pow(d0, 2));
+            float valor = (gammah - gammal) * (1 - expf(exp)) + gammal;
+            tmp.at<float>(i, j) = valor;
+        }
+    }
+
+    Mat comps[] = { tmp, tmp };
+    merge(comps, 2, filter);
+
+    Mat dftClone = imageDft.clone();
+
+    mulSpectrums(dftClone, filter, dftClone, 0);
+
+    deslocaDFT(dftClone);
+
+    idft(dftClone, dftClone);
+
+    vector<Mat> planos;
+
+    split(dftClone, planos);
+
+    normalize(planos[0], planos[0], 0, 1, CV_MINMAX);
+
+    imshow("Homomorfico", planos[0]);
+    imshow("Original", image);
+}
+
+void on_trackbar_gammal(int, void*) {
+    gammal = (float)gammal_slider;
+    gammal = max_gammal * gammal / MAX;
+    applyFilter();
+}
+
+void on_trackbar_d0(int, void*) {
+    d0 = d0_slider * max_d0 / MAX;
+    applyFilter();
+}
+
+void on_trackbar_gammah(int, void*) {
+    gammah = gammah_slider * max_gammah / MAX;
+    applyFilter();
+}
+
+void on_trackbar_c(int, void*) {
+    c = c_slider * max_c / MAX;
+    applyFilter();
+}
+
+int main(int argvc, char** argv) {
+    image = imread("Golden.png", CV_LOAD_IMAGE_GRAYSCALE);
+
+
+
+
+    dft_M = getOptimalDFTSize(image.rows);
+    dft_N = getOptimalDFTSize(image.cols);
+
+ 
+    Mat_<float> zeros;
+    copyMakeBorder(image, padded, 0,
+        dft_M - image.rows, 0,
+        dft_N - image.cols,
+        BORDER_CONSTANT, Scalar::all(0));
+
+
+    zeros = Mat_<float>::zeros(padded.size());
+
+
+    imageDft = Mat(padded.size(), CV_32FC2, Scalar(0));
+
+    copyMakeBorder(image, padded, 0,
+        dft_M - image.rows, 0,
+        dft_N - image.cols,
+        BORDER_CONSTANT, Scalar::all(0));
+
+    Mat_<float> realInput = Mat_<float>(padded);
+
+    vector<Mat> planos;
+    planos.push_back(realInput);
+    planos.push_back(zeros);
+
+    merge(planos, imageDft);
+
+    dft(imageDft, imageDft);
+    deslocaDFT(imageDft);
+
+    namedWindow("Homomorfico", 1);
+
+    sprintf_s(TrackbarName, "Gamma High");
+    createTrackbar(TrackbarName, "Homomorfico", &gammah_slider, MAX, on_trackbar_gammah);
+
+    sprintf_s(TrackbarName, "Gamma Low");
+    createTrackbar(TrackbarName, "Homomorfico", &gammal_slider, MAX, on_trackbar_gammal);
+
+    sprintf_s(TrackbarName, "C");
+    createTrackbar(TrackbarName, "Homomorfico", &c_slider, MAX, on_trackbar_c);
+
+    sprintf_s(TrackbarName, "Cutoff D0");
+    createTrackbar(TrackbarName, "Homomorfico", &d0_slider, MAX, on_trackbar_d0);
+
+
+    applyFilter();
+    waitKey(0);
+
+    return 0;
+}
 ----
+image::campo0.png[title="Imagen usada"]
+
+image::campo1.png[title="Filtragem no Domínio da Frequência"]
+
+image::campo2.png[title="Filtragem no Domínio da Frequência"]
 
 
 == Detecção de bordas com o algoritmo de Canny
@@ -289,8 +645,91 @@ Em produção @@@@@@@@@@@
 
 [source, cpp]
 ----
-Em produção @@@@@@@@@@@
+#include <algorithm>
+#include <cstdlib>
+#include <ctime>
+#include <fstream>
+#include <iomanip>
+#include <iostream>
+#include <numeric>
+#include <opencv2/opencv.hpp>
+#include <vector>
+
+using namespace cv;
+using namespace std;
+
+#define STEP 5
+#define JITTER 3
+#define RAIO 3
+
+int main(int argc, char** argv) {
+    srand(time(0));
+
+    Mat imagem, canny_imagem, pontilhismo_imagem;
+    vector<int> y_range; vector<int> x_range;
+    int x, y, cinza_value, width, height;
+
+    imagem = imread("imagem 3.png", CV_LOAD_IMAGE_GRAYSCALE); // Imagem em tom de cinza!
+    if (!imagem.data) {
+        cout << "Erro na abertura da imagem." << endl;
+        exit(0);
+    }
+
+    width = imagem.size().width; height = imagem.size().height;
+    x_range.resize(height / STEP); y_range.resize(width / STEP);
+    iota(x_range.begin(), x_range.end(), 0); iota(y_range.begin(), y_range.end(), 0);
+
+    for (uint i = 0; i < x_range.size(); i++) {
+        x_range[i] = x_range[i] * STEP + STEP / 2; y_range[i] = y_range[i] * STEP + STEP / 2;
+    }
+
+    imagem.copyTo(pontilhismo_imagem);
+    random_shuffle(x_range.begin(), x_range.end());
+
+    for (auto i : x_range) {
+        random_shuffle(x_range.begin(), x_range.end());
+        for (auto j : y_range) {
+            x = i + rand() % (2 * JITTER) - JITTER + 1; y = j + rand() % (2 * JITTER) - JITTER + 1;
+            cinza_value = imagem.at<uchar>(x, y);
+            circle(pontilhismo_imagem, cv::Point(y, x), RAIO, CV_RGB(cinza_value, cinza_value, cinza_value), -1, CV_AA);
+        }
+    }
+    imwrite("Pont1.png", pontilhismo_imagem);
+
+    /*
+      O código abaixo executa o filtro de canny na imagem n vezes,
+      e a cada passo aumenta os limiares do filtro, diminuindo o número de bordas da saída,
+      e ao mesmo tempo melhorando a qualidade da imagem final.
+    */
+    int n_passo = 5;
+    for (int i = 0; i < n_passo; i++) {
+
+        /*
+         * Raio = Raio do círculo desenhado
+         * Low_limiar = Limiar inferior do filtro / high_limiar = Limiar superior do filtro
+        */
+        int raio = 5 - i, low_limiar = 10 * i, high_limiar = 3 * low_limiar;
+
+        Canny(imagem, canny_imagem, low_limiar, high_limiar);
+
+        for (int i = 0; i < height; i++) {
+            for (int j = 0; j < width; j++) {
+                if (canny_imagem.at<uchar>(i, j) > 0) {
+                    cinza_value = imagem.at<uchar>(i, j);
+                    circle(pontilhismo_imagem, cv::Point(j, i), raio, CV_RGB(cinza_value, cinza_value, cinza_value), -1, CV_AA);
+                }
+            }
+        }
+    }
+    imwrite("Pont2.png", pontilhismo_imagem);
+    return 0;
+}
 ----
+image::paisagem0.png[title="Imagen usada"]
+
+image::paisagem1.png[title="Resultado Detecção de bordas com o algoritmo de Canny"]
+
+image::paisagem3.png[title="Resultado Detecção de bordas com o algoritmo de Canny"]
 
 == Quantização vetorial com k-means
 
@@ -299,7 +738,54 @@ Em produção @@@@@@@@@@@
 
 [source, cpp]
 ----
-Em produção @@@@@@@@@@@
+#include <opencv2/opencv.hpp>
+#include <cstdlib>
+
+using namespace cv;
+
+int main( int argc, char** argv ){
+  int nClusters = 5;
+  Mat rotulos;
+  int nRodadas = 1;
+  Mat centros;
+
+  if(argc!=3){
+	exit(0);
+  }
+
+  Mat img = imread( argv[1], CV_LOAD_IMAGE_COLOR);
+  Mat samples(img.rows * img.cols, 3, CV_32F);
+
+  for( int y = 0; y < img.rows; y++ ){
+    for( int x = 0; x < img.cols; x++ ){
+      for( int z = 0; z < 3; z++){
+        samples.at<float>(y + x*img.rows, z) = img.at<Vec3b>(y,x)[z];
+	  }
+	}
+  }
+
+  kmeans(samples,
+		 nClusters,
+		 rotulos,
+		 TermCriteria(CV_TERMCRIT_ITER, 7, 1.0),
+		 nRodadas,
+		 KMEANS_RANDOM_CENTERS,
+		 centros );
+
+
+  Mat rotulada( img.size(), img.type() );
+  for( int y = 0; y < img.rows; y++ ){
+    for( int x = 0; x < img.cols; x++ ){
+	  int indice = rotulos.at<int>(y + x*img.rows,0);
+	  rotulada.at<Vec3b>(y,x)[0] = (uchar) centros.at<float>(indice, 0);
+	  rotulada.at<Vec3b>(y,x)[1] = (uchar) centros.at<float>(indice, 1);
+	  rotulada.at<Vec3b>(y,x)[2] = (uchar) centros.at<float>(indice, 2);
+	}
+  }
+  imshow( "clustered image", rotulada );
+  imwrite(argv[2], rotulada);
+  waitKey( 0 );
+}
 ----
 
 == Filtragem de forma com morfologia matemática
